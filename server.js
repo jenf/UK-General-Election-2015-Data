@@ -9,13 +9,14 @@ var IndexURL = "http://www.bbc.co.uk/news/politics/constituencies";
 
 var Constituencies = [];
 var Candidates = [];
+var ConstituenciesData = []
 
 
 if( fs.existsSync("data.sqlite") ){
 	fs.unlinkSync("data.sqlite");
 }
 
-var db = new sqlite3.Database("data.sqlite");
+//var db = new sqlite3.Database("data.sqlite");
 
 
 CreateDatabase(BuildIndexData(function(){
@@ -39,11 +40,11 @@ CreateDatabase(BuildIndexData(function(){
 
 
 function CreateDatabase(Callback){
-	db.run("PRAGMA foreign_keys = ON;");
+/*	db.run("PRAGMA foreign_keys = ON;");
 	db.run("CREATE TABLE IF NOT EXISTS Constituency ( ONSID VARCHAR(9) PRIMARY KEY, Name VARCHAR(64) NOT NULL );");
 	db.run("CREATE TABLE IF NOT EXISTS Party ( Name VARCHAR(64) PRIMARY KEY );")
 	db.run("CREATE TABLE IF NOT EXISTS Candidate ( CandidateID INTEGER PRIMARY KEY AUTOINCREMENT, Name VARCHAR(64) NOT NULL, Constituency VARCHAR(9) NOT NULL, Party VARCHAR(64) NOT NULL, Votes INTEGER, Share INTEGER, Change INTEGER, FOREIGN KEY (Constituency) REFERENCES Constituency(ONSID) ON DELETE CASCADE, FOREIGN KEY (Party) REFERENCES Party(Name) ON DELETE CASCADE );");
-	if(typeof Callback == "function") Callback();
+	if(typeof Callback == "function") Callback();*/
 }
 
 
@@ -66,7 +67,7 @@ function BuildIndexData(Callback){
 				var name = $(this).text();
 
 				Constituencies.push(id);
-				db.run("INSERT OR IGNORE INTO Constituency (ONSID, Name) VALUES (?, ?);", [id, name]);
+				//db.run("INSERT OR IGNORE INTO Constituency (ONSID, Name) VALUES (?, ?);", [id, name]);
 
 				console.log("OK! Indexed constituency " + id + " (" + name + ")");
 
@@ -97,6 +98,13 @@ function LoadConstituencyData(ConstituencyID, Callback){
 		$(".off-screen").remove();
 		var constituencyname = $(".constituency-title__title").text();
 
+		var constituency = {
+			constituencyid:  ConstituencyID,
+			constituencyname: constituencyname,
+			turnout: $(".results-turnout__percentage .results-turnout__value--right").text(),
+			candidates: []
+		}
+		ConstituenciesData.push(constituency);
 		$(".party").each(function(i, element){
 			
 			var candidate = {
@@ -108,15 +116,23 @@ function LoadConstituencyData(ConstituencyID, Callback){
 				share: $(this).find(".party__result--votesshare").text(),
 				change: $(this).find(".party__result--votesnet").text()
 			}
+
+			var candidate2 = {
+				party: $(this).find(".party__name--long").text().replace(/('|")/g, ''),
+				name: $(this).find(".party__result--candidate").text().replace(/('|")/g, ''),
+				votes: $(this).find(".party__result--votes").text().replace(/,/g, ''),
+				share: $(this).find(".party__result--votesshare").text(),
+				change: $(this).find(".party__result--votesnet").text()
+			}
 			
 			if(candidate['constituencyid'] !== "" && candidate['constituencyname'] !== "" && candidate['party'] !== "" && candidate['name'] !== "" && candidate['votes'] !== "" && candidate['share'] !== "" && candidate['change'] !== ""){
-				
+				constituency.candidates.push(candidate2);
 				Candidates.push(candidate);
 
-				db.serialize(function(){
+				/*db.serialize(function(){
 					db.run("INSERT OR IGNORE INTO Party (Name) VALUES (?);", candidate['party']);
 					db.run("INSERT INTO Candidate (Name, Constituency, Party, Votes, Share, Change) VALUES (?, ?, ?, ?, ?, ?);", [candidate['name'], candidate['constituencyid'], candidate['party'], candidate['votes'], candidate['share'], candidate['change']]);
-				});
+				});*/
 
 				console.log("OK! Parsed candidate " + candidate.constituencyname + "\\" + candidate.name);
 
@@ -164,7 +180,7 @@ function WriteCSV(){
 
 
 function WriteJSON(){
-	fs.writeFile("data.json", JSON.stringify(Candidates, null, 4), function(err){
+	fs.writeFile("data.json", JSON.stringify(ConstituenciesData, null, 4), function(err){
 		if(err) console.error("Error: Could not write data.json file, " + err);
 	});
 }
